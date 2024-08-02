@@ -1,0 +1,15 @@
+{
+  "name": "todomvc",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "fastify start -w -l info -P synceddb-fastify-server.js"
+  },
+  "dependencies": {
+    "@platformatic/sql-mapper": "^1.51.8",
+    "fastify": "^4.28.1"
+  },
+  "devDependencies": {
+    "fastify-cli": "^6.3.0"
+  }
+}
