@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "fastify start -w -l info -P synceddb-fastify-server.js"
+    "sdb": "fastify start -w -l info -P synceddb-fastify-server.js"
   },
   "dependencies": {
-    "@platformatic/sql-mapper": "^1.51.8",
+    "@platformatic/sql-mapper": "^1.52.2",
     "fastify": "^4.28.1"
   },
   "devDependencies": {
