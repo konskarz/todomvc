@@ -3,14 +3,14 @@ A fully spec-compliant TodoMVC implementation
 https://vuejs.org/examples/#todomvc
 -->
 <!DOCTYPE html>
-<html lang="en" data-framework="vue">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TodoMVC: Vue</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TodoMVC Vue</title>
     <link
       rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/todomvc-app-css@2.4.3/index.min.css"
+      href="https://cdn.jsdelivr.net/npm/todomvc-app-css@2.4.1/index.min.css"
     />
     <script type="module">
       import {
@@ -26,7 +26,6 @@ https://vuejs.org/examples/#todomvc
         SyncManager,
         LiveQuery
       } from 'https://cdn.jsdelivr.net/npm/synceddb@0.0.2/+esm'
-      import { v4 as uuidv4 } from 'https://cdn.jsdelivr.net/npm/uuid@10.0.0/+esm'
 
       const STORAGE_KEY = 'vue-todomvc'
 
@@ -38,6 +37,7 @@ https://vuejs.org/examples/#todomvc
 
       createApp({
         setup() {
+          // state
           const todos = ref([])
           const visibility = ref('all')
           const editedTodo = ref()
@@ -63,7 +63,11 @@ https://vuejs.org/examples/#todomvc
           function addTodo(e) {
             const value = e.target.value.trim()
             if (value) {
-              db.add('todos', { id: uuidv4(), title: value, completed: false })
+              db.add('todos', {
+                id: Math.random().toString(36).substring(2) + Date.now().toString(36),
+                title: value,
+                completed: false
+              })
               e.target.value = ''
             }
           }
