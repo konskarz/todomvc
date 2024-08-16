@@ -1,0 +1,280 @@
+<!--
+A fully spec-compliant TodoMVC implementation
+https://vuejs.org/examples/#todomvc
+-->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TodoMVC Vue Beer CSS</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/beercss/dist/cdn/beer.min.css" />
+    <style>
+      nav.drawer > :is(a, label) {
+        margin-bottom: 0.5rem;
+      }
+      :is(main, header, footer, section).responsive.min {
+        max-inline-size: 42rem;
+      }
+      /* 42 * 16 + 320 * 2 = 1312 */
+      @media (min-width: 993px) and (max-width: 1311px) {
+        *:has(> nav.l.right) {
+          padding-inline-end: 0 !important;
+        }
+        nav.right {
+          display: none;
+        }
+        :is(main, header, footer, section).responsive.min {
+          margin-left: 0;
+          margin-right: auto;
+        }
+      }
+    </style>
+    <script type="module">
+      import {
+        createApp,
+        ref,
+        computed,
+        watchEffect,
+        watch
+      } from 'https://cdn.jsdelivr.net/npm/vue@3/dist/vue.esm-browser.prod.js'
+
+      const STORAGE_KEY = 'vue-todomvc'
+
+      const filters = {
+        all: (todos) => todos,
+        active: (todos) => todos.filter((todo) => !todo.completed),
+        completed: (todos) => todos.filter((todo) => todo.completed)
+      }
+
+      createApp({
+        setup() {
+          // state
+          const todos = ref(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'))
+          const visibility = ref('all')
+          const editedTodo = ref()
+          const mode = ref('dark')
+          const drawer = ref(false)
+          const views = [
+            {
+              to: '#/all',
+              visibility: 'all',
+              icon: 'home',
+              label: 'All'
+            },
+            {
+              to: '#/active',
+              visibility: 'active',
+              icon: 'radio_button_unchecked',
+              label: 'Active'
+            },
+            {
+              to: '#/completed',
+              visibility: 'completed',
+              icon: 'radio_button_checked',
+              label: 'Completed'
+            }
+          ]
+
+          // derived state
+          const filteredTodos = computed(() => filters[visibility.value](todos.value))
+          const remaining = computed(() => filters.active(todos.value).length)
+
+          // handle routing
+          window.addEventListener('hashchange', onHashChange)
+          onHashChange()
+
+          // persist state
+          watchEffect(() => {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(todos.value))
+          })
+
+          // change mode
+          watch(mode, (newValue, oldValue) => {
+            document.body.classList.replace(oldValue, newValue)
+          })
+
+          function toggleAll(e) {
+            todos.value.forEach((todo) => (todo.completed = e.target.checked))
+          }
+
+          function addTodo(e) {
+            const value = e.target.value.trim()
+            if (value) {
+              todos.value.push({
+                id: Date.now(),
+                title: value,
+                completed: false
+              })
+              e.target.value = ''
+            }
+          }
+
+          function removeTodo(todo) {
+            todos.value.splice(todos.value.indexOf(todo), 1)
+          }
+
+          let beforeEditCache = ''
+          function editTodo(todo) {
+            beforeEditCache = todo.title
+            editedTodo.value = todo
+          }
+
+          function cancelEdit(todo) {
+            editedTodo.value = null
+            todo.title = beforeEditCache
+          }
+
+          function doneEdit(todo) {
+            if (editedTodo.value) {
+              editedTodo.value = null
+              todo.title = todo.title.trim()
+              if (!todo.title) removeTodo(todo)
+            }
+          }
+
+          function removeCompleted() {
+            todos.value = filters.active(todos.value)
+            console.log(remaining.value)
+          }
+
+          function onHashChange() {
+            const route = window.location.hash.replace(/#\/?/, '')
+            if (filters[route]) {
+              visibility.value = route
+            } else {
+              window.location.hash = ''
+              visibility.value = 'all'
+            }
+          }
+
+          return {
+            todos,
+            visibility,
+            editedTodo,
+            filteredTodos,
+            remaining,
+            mode,
+            drawer,
+            views,
+            toggleAll,
+            addTodo,
+            removeTodo,
+            editTodo,
+            doneEdit,
+            cancelEdit,
+            removeCompleted
+          }
+        }
+      }).mount('#app')
+    </script>
+  </head>
+  <body class="dark">
+    <div id="app">
+      <nav v-show="todos.length" class="left drawer l">
+        <header class="tiny-margin"></header>
+        <div class="space"></div>
+        <a
+          v-for="(view, index) in views"
+          :key="index"
+          :href="view.to"
+          :class="{ active: visibility === view.visibility }"
+        >
+          <i>{{view.icon}}</i>
+          <div>{{view.label}}</div>
+        </a>
+      </nav>
+      <nav v-show="todos.length" class="right drawer l"></nav>
+      <nav class="top">
+        <button v-show="todos.length" class="transparent circle s m" @click="drawer = true">
+          <i>menu</i>
+        </button>
+        <div class="l"></div>
+        <h5>Todos</h5>
+        <div class="max"></div>
+        <label class="switch icon">
+          <input type="checkbox" v-model="mode" true-value="light" false-value="dark" />
+          <span>
+            <i>dark_mode</i>
+            <i>light_mode</i>
+          </span>
+        </label>
+      </nav>
+      <nav v-show="todos.length" class="bottom">
+        <span class="medium-text">
+          <strong>{{ remaining }}</strong>
+          <span>{{ remaining === 1 ? ' item' : ' items' }} left</span>
+        </span>
+      </nav>
+      <div class="overlay s m" :class="{ active: drawer === true }" @click="drawer = false"></div>
+      <dialog class="left s m" :class="{ active: drawer === true }" @click="drawer = false">
+        <nav class="drawer no-padding">
+          <header>
+            <nav>
+              <button class="transparent circle">
+                <i>menu_open</i>
+              </button>
+            </nav>
+          </header>
+          <div class="space"></div>
+          <a
+            v-for="(view, index) in views"
+            :key="index"
+            :href="view.to"
+            :class="{ active: visibility === view.visibility }"
+          >
+            <i>{{view.icon}}</i>
+            <div>{{view.label}}</div>
+          </a>
+        </nav>
+      </dialog>
+      <main class="responsive min">
+        <section class="row padding">
+          <label class="checkbox" title="Mark all as complete">
+            <input
+              type="checkbox"
+              :disabled="!todos.length"
+              :checked="todos.length && remaining === 0"
+              @change="toggleAll"
+            />
+            <span></span>
+          </label>
+          <div class="field max">
+            <input placeholder="What needs to be done?" @keyup.enter="addTodo" />
+          </div>
+          <button
+            title="Clear completed"
+            class="transparent circle"
+            :disabled="todos.length === remaining"
+            @click="removeCompleted"
+          >
+            <i>delete</i>
+          </button>
+        </section>
+        <section v-show="todos.length" class="no-margin">
+          <div class="row padding no-margin" v-for="todo in filteredTodos" :key="todo.id">
+            <label class="checkbox">
+              <input type="checkbox" v-model="todo.completed" />
+              <span></span>
+            </label>
+            <div class="field max">
+              <h6 v-if="todo !== editedTodo" class="small padding" @dblclick="editTodo(todo)">
+                {{ todo.title }}
+              </h6>
+              <input
+                v-else
+                type="text"
+                v-model="todo.title"
+                @vue:mounted="({ el }) => el.focus()"
+                @blur="doneEdit(todo)"
+                @keyup.enter="doneEdit(todo)"
+                @keyup.escape="cancelEdit(todo)"
+              />
+            </div>
+            <button class="transparent circle" @click="removeTodo(todo)"><i>close</i></button>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
