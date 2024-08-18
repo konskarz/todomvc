@@ -30,6 +30,117 @@ https://vuejs.org/examples/#todomvc
         }
       }
     </style>
+  </head>
+  <body class="dark">
+    <div id="app">
+      <nav v-show="todos.length" class="left drawer l">
+        <header class="tiny-margin"></header>
+        <div class="space"></div>
+        <a
+          v-for="(view, index) in views"
+          :key="index"
+          :href="view.to"
+          :class="{ active: visibility === view.visibility }"
+        >
+          <i v-text="view.icon"></i>
+          <div v-text="view.label"></div>
+        </a>
+      </nav>
+      <nav v-show="todos.length" class="right drawer l"></nav>
+      <nav class="top">
+        <button v-show="todos.length" class="transparent circle s m" @click="drawer = true">
+          <i>menu</i>
+        </button>
+        <div class="l"></div>
+        <h5>Todos</h5>
+        <div class="max"></div>
+        <label class="switch icon">
+          <input type="checkbox" v-model="mode" true-value="light" false-value="dark" />
+          <span>
+            <i>dark_mode</i>
+            <i>light_mode</i>
+          </span>
+        </label>
+      </nav>
+      <nav v-show="todos.length" class="bottom">
+        <span class="medium-text">
+          <strong v-text="remaining"></strong>
+          <span v-text="remaining === 1 ? ' item' : ' items' + ' left'"></span>
+        </span>
+      </nav>
+      <div class="overlay s m" :class="{ active: drawer === true }" @click="drawer = false"></div>
+      <dialog class="left s m" :class="{ active: drawer === true }" @click="drawer = false">
+        <nav class="drawer no-padding">
+          <header>
+            <nav>
+              <button class="transparent circle">
+                <i>menu_open</i>
+              </button>
+            </nav>
+          </header>
+          <div class="space"></div>
+          <a
+            v-for="(view, index) in views"
+            :key="index"
+            :href="view.to"
+            :class="{ active: visibility === view.visibility }"
+          >
+            <i v-text="view.icon"></i>
+            <div v-text="view.label"></div>
+          </a>
+        </nav>
+      </dialog>
+      <main class="responsive min">
+        <section class="row padding">
+          <label class="checkbox" title="Mark all as complete">
+            <input
+              type="checkbox"
+              :disabled="!todos.length"
+              :checked="todos.length && remaining === 0"
+              @change="toggleAll"
+            />
+            <span></span>
+          </label>
+          <div class="field max">
+            <input placeholder="What needs to be done?" @keyup.enter="addTodo" />
+          </div>
+          <button
+            title="Clear completed"
+            class="transparent circle"
+            :disabled="todos.length === remaining"
+            @click="removeCompleted"
+          >
+            <i>delete</i>
+          </button>
+        </section>
+        <section v-show="todos.length" class="no-margin">
+          <div class="row padding no-margin" v-for="todo in filteredTodos" :key="todo.id">
+            <label class="checkbox">
+              <input type="checkbox" v-model="todo.completed" />
+              <span></span>
+            </label>
+            <div class="field max">
+              <h6
+                v-if="todo !== editedTodo"
+                class="small padding"
+                @dblclick="editTodo(todo)"
+                v-text="todo.title"
+              ></h6>
+              <input
+                v-else
+                type="text"
+                v-model="todo.title"
+                @vue:mounted="({ el }) => el.focus()"
+                @blur="doneEdit(todo)"
+                @keyup.enter="doneEdit(todo)"
+                @keyup.escape="cancelEdit(todo)"
+              />
+            </div>
+            <button class="transparent circle" @click="removeTodo(todo)"><i>close</i></button>
+          </div>
+        </section>
+      </main>
+    </div>
     <script type="module">
       import {
         createApp,
@@ -168,113 +279,5 @@ https://vuejs.org/examples/#todomvc
         }
       }).mount('#app')
     </script>
-  </head>
-  <body class="dark">
-    <div id="app">
-      <nav v-show="todos.length" class="left drawer l">
-        <header class="tiny-margin"></header>
-        <div class="space"></div>
-        <a
-          v-for="(view, index) in views"
-          :key="index"
-          :href="view.to"
-          :class="{ active: visibility === view.visibility }"
-        >
-          <i>{{view.icon}}</i>
-          <div>{{view.label}}</div>
-        </a>
-      </nav>
-      <nav v-show="todos.length" class="right drawer l"></nav>
-      <nav class="top">
-        <button v-show="todos.length" class="transparent circle s m" @click="drawer = true">
-          <i>menu</i>
-        </button>
-        <div class="l"></div>
-        <h5>Todos</h5>
-        <div class="max"></div>
-        <label class="switch icon">
-          <input type="checkbox" v-model="mode" true-value="light" false-value="dark" />
-          <span>
-            <i>dark_mode</i>
-            <i>light_mode</i>
-          </span>
-        </label>
-      </nav>
-      <nav v-show="todos.length" class="bottom">
-        <span class="medium-text">
-          <strong>{{ remaining }}</strong>
-          <span>{{ remaining === 1 ? ' item' : ' items' }} left</span>
-        </span>
-      </nav>
-      <div class="overlay s m" :class="{ active: drawer === true }" @click="drawer = false"></div>
-      <dialog class="left s m" :class="{ active: drawer === true }" @click="drawer = false">
-        <nav class="drawer no-padding">
-          <header>
-            <nav>
-              <button class="transparent circle">
-                <i>menu_open</i>
-              </button>
-            </nav>
-          </header>
-          <div class="space"></div>
-          <a
-            v-for="(view, index) in views"
-            :key="index"
-            :href="view.to"
-            :class="{ active: visibility === view.visibility }"
-          >
-            <i>{{view.icon}}</i>
-            <div>{{view.label}}</div>
-          </a>
-        </nav>
-      </dialog>
-      <main class="responsive min">
-        <section class="row padding">
-          <label class="checkbox" title="Mark all as complete">
-            <input
-              type="checkbox"
-              :disabled="!todos.length"
-              :checked="todos.length && remaining === 0"
-              @change="toggleAll"
-            />
-            <span></span>
-          </label>
-          <div class="field max">
-            <input placeholder="What needs to be done?" @keyup.enter="addTodo" />
-          </div>
-          <button
-            title="Clear completed"
-            class="transparent circle"
-            :disabled="todos.length === remaining"
-            @click="removeCompleted"
-          >
-            <i>delete</i>
-          </button>
-        </section>
-        <section v-show="todos.length" class="no-margin">
-          <div class="row padding no-margin" v-for="todo in filteredTodos" :key="todo.id">
-            <label class="checkbox">
-              <input type="checkbox" v-model="todo.completed" />
-              <span></span>
-            </label>
-            <div class="field max">
-              <h6 v-if="todo !== editedTodo" class="small padding" @dblclick="editTodo(todo)">
-                {{ todo.title }}
-              </h6>
-              <input
-                v-else
-                type="text"
-                v-model="todo.title"
-                @vue:mounted="({ el }) => el.focus()"
-                @blur="doneEdit(todo)"
-                @keyup.enter="doneEdit(todo)"
-                @keyup.escape="cancelEdit(todo)"
-              />
-            </div>
-            <button class="transparent circle" @click="removeTodo(todo)"><i>close</i></button>
-          </div>
-        </section>
-      </main>
-    </div>
   </body>
 </html>

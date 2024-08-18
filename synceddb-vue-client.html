@@ -12,149 +12,6 @@ https://vuejs.org/examples/#todomvc
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/todomvc-app-css@2.4.1/index.min.css"
     />
-    <script type="module">
-      import {
-        createApp,
-        ref,
-        computed,
-        toRaw,
-        onMounted,
-        onUnmounted
-      } from 'https://cdn.jsdelivr.net/npm/vue@3/dist/vue.esm-browser.prod.js'
-      import {
-        openDB,
-        SyncManager,
-        LiveQuery
-      } from 'https://cdn.jsdelivr.net/npm/synceddb@0.0.2/+esm'
-
-      const STORAGE_KEY = 'vue-todomvc'
-
-      const filters = {
-        all: (todos) => todos,
-        active: (todos) => todos.filter((todo) => !todo.completed),
-        completed: (todos) => todos.filter((todo) => todo.completed)
-      }
-
-      createApp({
-        setup() {
-          // state
-          const todos = ref([])
-          const visibility = ref('all')
-          const editedTodo = ref()
-          let db = null
-          let query = null
-
-          // derived state
-          const filteredTodos = computed(() => filters[visibility.value](todos.value))
-          const remaining = computed(() => filters.active(todos.value).length)
-
-          // handle routing
-          window.addEventListener('hashchange', onHashChange)
-          onHashChange()
-
-          function toggleAll(e) {
-            const transaction = db.transaction('todos', 'readwrite')
-            todos.value.forEach((todo) => {
-              todo.completed = e.target.checked
-              transaction.store.put(toRaw(todo))
-            })
-          }
-
-          function addTodo(e) {
-            const value = e.target.value.trim()
-            if (value) {
-              db.add('todos', {
-                id: Math.random().toString(36).substring(2) + Date.now().toString(36),
-                title: value,
-                completed: false
-              })
-              e.target.value = ''
-            }
-          }
-
-          function removeTodo(todo) {
-            db.delete('todos', todo.id)
-          }
-
-          function saveTodo(todo) {
-            db.put('todos', toRaw(todo))
-          }
-
-          let beforeEditCache = ''
-          function editTodo(todo) {
-            beforeEditCache = todo.title
-            editedTodo.value = todo
-          }
-
-          function cancelEdit(todo) {
-            editedTodo.value = null
-            todo.title = beforeEditCache
-          }
-
-          function doneEdit(todo) {
-            if (editedTodo.value) {
-              editedTodo.value = null
-              todo.title = todo.title.trim()
-              if (!todo.title) removeTodo(todo)
-              else saveTodo(todo)
-            }
-          }
-
-          function removeCompleted() {
-            const transaction = db.transaction('todos', 'readwrite')
-            filters.completed(todos.value).forEach((todo) => {
-              transaction.store.delete(todo.id)
-            })
-          }
-
-          function onHashChange() {
-            const route = window.location.hash.replace(/#\/?/, '')
-            if (filters[route]) {
-              visibility.value = route
-            } else {
-              window.location.hash = ''
-              visibility.value = 'all'
-            }
-          }
-
-          onMounted(async () => {
-            db = await openDB(STORAGE_KEY, 1, {
-              upgrade(db) {
-                db.createObjectStore('todos', { keyPath: 'id' })
-              }
-            })
-            const manager = new SyncManager(db, 'api', {
-              fetchInterval: 5000
-            })
-            manager.start()
-            query = new LiveQuery(['todos'], async () => {
-              todos.value = await db.getAll('todos')
-            })
-            await query.run()
-          })
-
-          onUnmounted(async () => {
-            query.close()
-          })
-
-          return {
-            todos,
-            visibility,
-            editedTodo,
-            filteredTodos,
-            remaining,
-            toggleAll,
-            addTodo,
-            removeTodo,
-            editTodo,
-            doneEdit,
-            cancelEdit,
-            removeCompleted,
-            saveTodo
-          }
-        }
-      }).mount('#app')
-    </script>
   </head>
   <body>
     <div id="app">
@@ -191,7 +48,7 @@ https://vuejs.org/examples/#todomvc
                   v-model="todo.completed"
                   @change="saveTodo(todo)"
                 />
-                <label @dblclick="editTodo(todo)">{{ todo.title }}</label>
+                <label @dblclick="editTodo(todo)" v-text="todo.title"></label>
                 <button class="destroy" @click="removeTodo(todo)"></button>
               </div>
               <input
@@ -209,8 +66,8 @@ https://vuejs.org/examples/#todomvc
         </section>
         <footer class="footer" v-show="todos.length">
           <span class="todo-count">
-            <strong>{{ remaining }}</strong>
-            <span>{{ remaining === 1 ? ' item' : ' items' }} left</span>
+            <strong v-text="remaining"></strong>
+            <span v-text="remaining === 1 ? ' item' : ' items' + ' left'"></span>
           </span>
           <ul class="filters">
             <li>
@@ -233,5 +90,146 @@ https://vuejs.org/examples/#todomvc
         </footer>
       </section>
     </div>
+    <script type="module">
+      import {
+        createApp,
+        ref,
+        computed,
+        toRaw,
+        onMounted,
+        onUnmounted
+      } from 'https://cdn.jsdelivr.net/npm/vue@3/dist/vue.esm-browser.prod.js'
+      import {
+        openDB,
+        SyncManager,
+        LiveQuery
+      } from 'https://cdn.jsdelivr.net/npm/synceddb@0.0.2/+esm'
+
+      const STORAGE_KEY = 'todos'
+      const db = await openDB('vue-todomvc', 1, {
+        upgrade(db) {
+          db.createObjectStore(STORAGE_KEY, { keyPath: 'id' })
+        }
+      })
+
+      const filters = {
+        all: (todos) => todos,
+        active: (todos) => todos.filter((todo) => !todo.completed),
+        completed: (todos) => todos.filter((todo) => todo.completed)
+      }
+
+      createApp({
+        setup() {
+          // state
+          const todos = ref([])
+          const visibility = ref('all')
+          const editedTodo = ref()
+          const query = new LiveQuery([STORAGE_KEY], async () => {
+            todos.value = await db.getAll(STORAGE_KEY)
+          })
+
+          // derived state
+          const filteredTodos = computed(() => filters[visibility.value](todos.value))
+          const remaining = computed(() => filters.active(todos.value).length)
+
+          // handle routing
+          window.addEventListener('hashchange', onHashChange)
+          onHashChange()
+
+          function toggleAll(e) {
+            const transaction = db.transaction(STORAGE_KEY, 'readwrite')
+            todos.value.forEach((todo) => {
+              todo.completed = e.target.checked
+              transaction.store.put(toRaw(todo))
+            })
+          }
+
+          function addTodo(e) {
+            const value = e.target.value.trim()
+            if (value) {
+              db.add(STORAGE_KEY, {
+                id: Math.random().toString(36).substring(2) + Date.now().toString(36),
+                title: value,
+                completed: false
+              })
+              e.target.value = ''
+            }
+          }
+
+          function removeTodo(todo) {
+            db.delete(STORAGE_KEY, todo.id)
+          }
+
+          function saveTodo(todo) {
+            db.put(STORAGE_KEY, toRaw(todo))
+          }
+
+          let beforeEditCache = ''
+          function editTodo(todo) {
+            beforeEditCache = todo.title
+            editedTodo.value = todo
+          }
+
+          function cancelEdit(todo) {
+            editedTodo.value = null
+            todo.title = beforeEditCache
+          }
+
+          function doneEdit(todo) {
+            if (editedTodo.value) {
+              editedTodo.value = null
+              todo.title = todo.title.trim()
+              if (!todo.title) removeTodo(todo)
+              else saveTodo(todo)
+            }
+          }
+
+          function removeCompleted() {
+            const transaction = db.transaction(STORAGE_KEY, 'readwrite')
+            filters.completed(todos.value).forEach((todo) => {
+              transaction.store.delete(todo.id)
+            })
+          }
+
+          function onHashChange() {
+            const route = window.location.hash.replace(/#\/?/, '')
+            if (filters[route]) {
+              visibility.value = route
+            } else {
+              window.location.hash = ''
+              visibility.value = 'all'
+            }
+          }
+
+          onMounted(async () => {
+            const manager = new SyncManager(db, 'api', {
+              fetchInterval: 5000
+            })
+            manager.start()
+            await query.run()
+          })
+
+          onUnmounted(async () => {
+            query.close()
+          })
+
+          return {
+            todos,
+            visibility,
+            editedTodo,
+            filteredTodos,
+            remaining,
+            toggleAll,
+            addTodo,
+            removeTodo,
+            editTodo,
+            doneEdit,
+            cancelEdit,
+            removeCompleted,
+            saveTodo
+          }
+        }
+      }).mount('#app')
+    </script>
   </body>
 </html>
