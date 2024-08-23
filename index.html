@@ -7,11 +7,13 @@ https://vuejs.org/examples/#todomvc
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>TodoMVC Vue Beer CSS</title>
+    <title>TodoMVC</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/beercss/dist/cdn/beer.min.css" />
+    <link rel="icon" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/icons/check2-circle.svg" />
+    <link rel="manifest" id="manifest-placeholder" />
     <style>
       nav.drawer > :is(a, label) {
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.5rem !important;
       }
       :is(main, header, footer, section).responsive.min {
         max-inline-size: 42rem;
@@ -24,16 +26,45 @@ https://vuejs.org/examples/#todomvc
         nav.right {
           display: none;
         }
-        :is(main, header, footer, section).responsive.min {
+        :is(main, header, footer, section).responsive.min.hasnav {
           margin-left: 0;
           margin-right: auto;
         }
       }
     </style>
+    <script>
+      window.addEventListener('load', () => {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.register('sw.js').then(console.log).catch(console.error)
+        }
+      })
+      document.querySelector('#manifest-placeholder').setAttribute(
+        'href',
+        URL.createObjectURL(
+          new Blob(
+            [
+              JSON.stringify({
+                name: 'TodoMVC',
+                start_url: window.location.href,
+                icons: [
+                  {
+                    src: 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/icons/check2-circle.svg',
+                    sizes: 'any',
+                    type: 'image/svg+xml'
+                  }
+                ],
+                display: 'standalone'
+              })
+            ],
+            { type: 'application/json' }
+          )
+        )
+      )
+    </script>
   </head>
   <body class="dark">
     <div id="app">
-      <nav v-show="todos.length" class="left drawer l">
+      <nav v-show="todos.length" class="drawer l" :class="{ left: todos.length }">
         <header class="tiny-margin"></header>
         <div class="space"></div>
         <a
@@ -46,7 +77,7 @@ https://vuejs.org/examples/#todomvc
           <div v-text="view.label"></div>
         </a>
       </nav>
-      <nav v-show="todos.length" class="right drawer l"></nav>
+      <nav v-show="todos.length" class="drawer l" :class="{ right: todos.length }"></nav>
       <nav class="top">
         <button v-show="todos.length" class="transparent circle s m" @click="drawer = true">
           <i>menu</i>
@@ -62,11 +93,18 @@ https://vuejs.org/examples/#todomvc
           </span>
         </label>
       </nav>
-      <nav v-show="todos.length" class="bottom">
-        <span class="medium-text">
+      <nav class="bottom">
+        <span v-show="todos.length" class="medium-text">
           <strong v-text="remaining"></strong>
           <span v-text="remaining === 1 ? ' item' : ' items' + ' left'"></span>
         </span>
+        <div class="max"></div>
+        <button v-show="todos.length" class="transparent circle" title="Backup" @click="backup">
+          <i>cloud_download</i>
+        </button>
+        <button class="transparent circle" title="Restore" @click.prevent="restore">
+          <i>cloud_upload</i>
+        </button>
       </nav>
       <div class="overlay s m" :class="{ active: drawer === true }" @click="drawer = false"></div>
       <dialog class="left s m" :class="{ active: drawer === true }" @click="drawer = false">
@@ -90,7 +128,7 @@ https://vuejs.org/examples/#todomvc
           </a>
         </nav>
       </dialog>
-      <main class="responsive min">
+      <main class="responsive min" :class="{ hasnav: todos.length }">
         <section class="row padding">
           <label class="checkbox" title="Mark all as complete">
             <input
@@ -146,11 +184,13 @@ https://vuejs.org/examples/#todomvc
         createApp,
         ref,
         computed,
-        watchEffect,
-        watch
-      } from 'https://cdn.jsdelivr.net/npm/vue@3/dist/vue.esm-browser.prod.js'
+        watch,
+        toRaw
+      } from 'https://cdn.jsdelivr.net/npm/vue/dist/vue.esm-browser.prod.js'
+      import { get, set } from 'https://cdn.jsdelivr.net/npm/idb-keyval/+esm'
 
-      const STORAGE_KEY = 'vue-todomvc'
+      const STORAGE_KEY = 'todomvc'
+      const store = await get(STORAGE_KEY)
 
       const filters = {
         all: (todos) => todos,
@@ -161,7 +201,7 @@ https://vuejs.org/examples/#todomvc
       createApp({
         setup() {
           // state
-          const todos = ref(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'))
+          const todos = ref(store || [])
           const visibility = ref('all')
           const editedTodo = ref()
           const mode = ref('dark')
@@ -196,9 +236,7 @@ https://vuejs.org/examples/#todomvc
           onHashChange()
 
           // persist state
-          watchEffect(() => {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(todos.value))
-          })
+          watch(todos, (newValue) => set(STORAGE_KEY, toRaw(newValue)), { deep: true })
 
           // change mode
           watch(mode, (newValue, oldValue) => {
@@ -245,8 +283,7 @@ https://vuejs.org/examples/#todomvc
           }
 
           function removeCompleted() {
-            todos.value = filters.active(todos.value)
-            console.log(remaining.value)
+            todos.value = filters.active(toRaw(todos.value))
           }
 
           function onHashChange() {
@@ -257,6 +294,35 @@ https://vuejs.org/examples/#todomvc
               window.location.hash = ''
               visibility.value = 'all'
             }
+          }
+
+          function backup() {
+            const a = document.createElement('a')
+            a.href = URL.createObjectURL(
+              new Blob([JSON.stringify(toRaw(todos.value))], {
+                type: 'application/json'
+              })
+            )
+            a.setAttribute('download', STORAGE_KEY + '.json')
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+          }
+
+          function restore() {
+            const input = document.createElement('input')
+            input.type = 'file'
+            input.multiple = false
+            input.accept = 'application/json'
+            input.onchange = (e) => {
+              const files = Array.from(e.target.files)
+              const reader = new FileReader()
+              reader.onload = (e) => {
+                todos.value = JSON.parse(e.target.result)
+              }
+              reader.readAsText(files[0])
+            }
+            input.click()
           }
 
           return {
@@ -274,7 +340,9 @@ https://vuejs.org/examples/#todomvc
             editTodo,
             doneEdit,
             cancelEdit,
-            removeCompleted
+            removeCompleted,
+            backup,
+            restore
           }
         }
       }).mount('#app')
